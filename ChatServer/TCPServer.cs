@@ -12,11 +12,6 @@ namespace ChatServer
         
         private readonly IPEndPoint ip;
         private readonly Socket listenSocket;
-        private Socket socketClient;
-        
-        private StringBuilder tempMessage = new StringBuilder();
-        private int bytes = 0;
-        private byte[] data = new byte[256];
 
         public TCPServer()
         {
@@ -37,19 +32,40 @@ namespace ChatServer
             Info?.Invoke("Сервер запущен. Ожидает подключения...");
         }
 
-        public void ClientConnecting()
+        public Socket GetSocket()
         {
-            socketClient = listenSocket.Accept();
+            return listenSocket;
         }
+        
+        public void CloseListenSocket()
+        {
+            listenSocket.Shutdown(SocketShutdown.Both);
+            listenSocket.Close();
+        }
+    }
 
+    public class TCPClientSocket
+    {
+        public event Message Info;
+        private readonly Socket client;
+
+        private int bytes = 0;
+        private byte[] data = new byte[256];
+        private StringBuilder tempMessage = new StringBuilder();
+
+        public TCPClientSocket(Socket connect)
+        {
+            client = connect.Accept();
+        }
+        
         public string GetMessage()
         {
             tempMessage.Clear();
             do
             {
-                bytes = socketClient.Receive(data);
+                bytes = client.Receive(data);
                 tempMessage.Append(Encoding.Unicode.GetString(data), 0, bytes);
-            } while (socketClient.Available > 0);
+            } while (client.Available > 0);
             
             Info?.Invoke(DateTime.Now.ToShortTimeString() + ":" + tempMessage);
             
@@ -59,20 +75,14 @@ namespace ChatServer
         public void SendMessage(string message)
         {
             byte[] data = Encoding.Unicode.GetBytes(message);
-            socketClient.Send(data);
+            client.Send(data);
             Info?.Invoke("Сообщение отправлено");
         }
-
+        
         public void CloseSocketClient()
         {
-            socketClient.Shutdown(SocketShutdown.Both);
-            socketClient.Close();
-        }
-
-        public void CloseListenSocket()
-        {
-            listenSocket.Shutdown(SocketShutdown.Both);
-            listenSocket.Close();
+            client.Shutdown(SocketShutdown.Both);
+            client.Close();
         }
     }
 }

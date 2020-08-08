@@ -1,7 +1,6 @@
 ﻿using System.Net.Sockets;
 using System.Threading.Tasks;
 using ChatServer;
-using AutoPackage;
 
 using static System.Console;
 
@@ -15,11 +14,13 @@ namespace Server
             server.Info += WriteLine;
 
             server.Start();
-            
-            Task task = new Task( () => Client(server) );
-            task.Start();
-            
-            server.CloseListenSocket();
+
+            while (true)
+            {
+                Task task = new Task( () => Client(server) );
+                task.Start();
+            }
+            //server.CloseListenSocket();
         }
 
         static void Client(TCPServer server)
@@ -32,15 +33,11 @@ namespace Server
             {
                 string message = clientSocket.GetMessage();
 
-                string temp = Package.Pack("0", "SERVICE", "Ваше сообщение получено");
-                clientSocket.SendMessage(temp);
+                clientSocket.SendMessage("Ваше сообщение получено");
 
-                var msg = Package.Unpack(message);
-
-                if (msg.Item2 == "STOP")
+                if (message == "стоп")
                 {
-                    temp = Package.Pack("0", "SERVICE", "Соединение разорвано");
-                    clientSocket.SendMessage(temp);
+                    clientSocket.SendMessage("Соединение разорвано");
                     break;
                 }
             }

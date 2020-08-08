@@ -6,6 +6,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\AutoPackage\AutoPackage.csproj" />
       <ProjectReference Include="..\ChatServer\ChatServer.csproj" />
     </ItemGroup>
 

@@ -1,4 +1,6 @@
-﻿using ChatServer;
+﻿using System.Net.Sockets;
+using System.Threading.Tasks;
+using ChatServer;
 
 using static System.Console;
 
@@ -15,24 +17,31 @@ namespace Server
 
             while (true)
             {
-                server.ClientConnecting();
-                
-                while (true)
-                {
-                    string message = server.GetMessage();
-
-                    server.SendMessage("Ваше сообщение получено");
-
-                    if (message == "стоп")
-                    {
-                        server.SendMessage("Соединение разорвано");
-                        break;
-                    }
-                }
-                server.CloseSocketClient();
-                break;
+                Task task = new Task( () => Client(server) );
+                task.Start();
             }
-            server.CloseListenSocket();
+            //server.CloseListenSocket();
+        }
+
+        static void Client(TCPServer server)
+        {
+            Socket listenSocket = server.GetSocket();
+            TCPClientSocket clientSocket = new TCPClientSocket(listenSocket);
+            clientSocket.Info += WriteLine;
+            
+            while (true)
+            {
+                string message = clientSocket.GetMessage();
+
+                clientSocket.SendMessage("Ваше сообщение получено");
+
+                if (message == "стоп")
+                {
+                    clientSocket.SendMessage("Соединение разорвано");
+                    break;
+                }
+            }
+            clientSocket.CloseSocketClient();
         }
     }
 }

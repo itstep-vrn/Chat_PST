@@ -1,47 +1,95 @@
-﻿using System.Net.Sockets;
+﻿using System;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using System.Threading.Tasks;
-using ChatServer;
 
 using static System.Console;
 
 namespace Server
 {
-    class Program
+    class ClientObj
     {
-        static void Main()
+        private TcpClient client;
+
+        public ClientObj(TcpClient client)
         {
-            TCPServer server = new TCPServer();
-            server.Info += WriteLine;
-
-            server.Start();
-
-            while (true)
-            {
-                Task task = new Task( () => Client(server) );
-                task.Start();
-            }
-            //server.CloseListenSocket();
+            this.client = client;
         }
 
-        static void Client(TCPServer server)
+        public void Process()
         {
-            Socket listenSocket = server.GetSocket();
-            TCPClientSocket clientSocket = new TCPClientSocket(listenSocket);
-            clientSocket.Info += WriteLine;
-            
-            while (true)
+            NetworkStream stream = null;
+
+            try
             {
-                string message = clientSocket.GetMessage();
+                stream = client.GetStream();
+                byte[] buffer = new byte[64];
+                StringBuilder message = new StringBuilder();
+                int bytes;
 
-                clientSocket.SendMessage("Ваше сообщение получено");
-
-                if (message == "стоп")
+                while (true)
                 {
-                    clientSocket.SendMessage("Соединение разорвано");
-                    break;
+                    bytes = 0;
+                    // Получение сообщения от клиента
+                    do
+                    {
+                        bytes = stream.Read(buffer, 0, buffer.Length);
+                        message.Append(Encoding.Unicode.GetString(buffer, 0, bytes));
+                    } while (stream.DataAvailable);
+
+                    WriteLine(message.ToString());
+
+                    // Отправка сообщения клиенту
+                    buffer = Encoding.Unicode.GetBytes("Сообщение получено");
+                    stream.Write(buffer, 0, buffer.Length);
                 }
             }
-            clientSocket.CloseSocketClient();
+            catch (Exception e)
+            {
+                WriteLine(e);
+            }
+            finally
+            {
+                stream?.Close();
+                client?.Close();
+            }
+        }
+    }
+
+    class Program
+    {
+        private static IPAddress ip_address = IPAddress.Parse("127.0.0.1");
+        private static int port = 8888;
+        private static TcpListener server;
+        
+        static void Main()
+        {
+            try
+            {
+                server = new TcpListener(ip_address, port);
+                server.Start();
+
+                WriteLine("Ожидаем подключения");
+
+                while (true)
+                {
+                    TcpClient tcpClient = server.AcceptTcpClient();
+                    ClientObj client = new ClientObj(tcpClient);
+
+                    Task clientThread = new Task(client.Process);
+                    clientThread.Start();
+                }
+                
+            }
+            catch (Exception e)
+            {
+                WriteLine(e);
+            }
+            finally
+            {
+                server?.Stop();
+            }
         }
     }
 }

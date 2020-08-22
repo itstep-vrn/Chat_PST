@@ -1,45 +1,46 @@
 ﻿using System;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
+using Lib;
 
 using static System.Console;
 
 namespace Client
 {
-    class Program
+    internal static class Program
     {
-        private static string ipaddress = "127.0.0.1";
-        private static int port = 8888;
+        private const string ipaddress = "127.0.0.1";
+        private const int port = 8888;
 
-        static void Main()
+        private static void Main()
         {
             TcpClient client = null;
+            var options = new JsonSerializerOptions { WriteIndented = false};
 
             try
             {
                 client = new TcpClient(ipaddress, port);
-                NetworkStream stream = client.GetStream();
-                string messageOut;
-                byte[] bufferOut;
-                byte[] bufferIn = new byte[64];
-                int bytes;
-                StringBuilder messageIn = new StringBuilder();
-
+                var stream = client.GetStream();
+                
                 while (true)
                 {
                     Write("Введите сообщение: ");
-                    messageOut = ReadLine();
+                    var messageOut = ReadLine();
+                    var msgOut = new Msg {Type = "TEXT", Message = messageOut};
+                    var message = JsonSerializer.Serialize(msgOut, options);
+                    
+                    WriteLine(message);
 
-                    bufferOut = Encoding.Unicode.GetBytes(messageOut);
+                    var bufferOut = Encoding.Unicode.GetBytes(message);
                     stream.Write(bufferOut, 0, bufferOut.Length);
 
-                    bytes = 0;
-                    do
-                    {
-                        bytes = stream.Read(bufferIn, 0, bufferIn.Length);
-                        messageIn.Append(Encoding.Unicode.GetString(bufferIn, 0, bytes));
-                    } while (stream.DataAvailable);
-                    WriteLine($"Ответ сервера - {messageIn}");
+                    message.Remove(0);
+                    
+                    var messageIn = Message.Get(stream);
+                    var msgIn = JsonSerializer.Deserialize<Msg>(messageIn.ToString(), options);
+                    WriteLine($"Ответ сервера - {msgIn.Type} : {msgIn.Message}");
+                    messageIn.Clear();
                 }
             }
             catch (Exception e)
